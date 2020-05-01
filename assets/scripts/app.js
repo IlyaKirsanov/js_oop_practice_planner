@@ -5,6 +5,7 @@ class DOMHelper {
 		const element = document.getElementById(elementId);
 		const destinationElement = document.querySelector(newDestinationSelector);
 		destinationElement.append(element);
+		element.scrollIntoView({ behavior: 'smooth' });
 	}
 
 	static clearEventListeners(element) {
@@ -16,32 +17,33 @@ class DOMHelper {
 
 class Component {
 
-	constructor(hostElementId, insertBefore = false){
-		if(hostElementId){
-			this.hostElementId = document.getElementById(hostElementId);
-		}else{
-			this.hostElementId = document.body;
+	constructor(hostElementId, insertBefore = false) {
+		if (hostElementId) {
+			this.hostElement = document.getElementById(hostElementId);
+		} else {
+			this.hostElement = document.body;
 		}
 		this.insertBefore = insertBefore;
 	}
 
 	detach() {
-		if(this.element){
+		if (this.element) {
 			this.element.remove();
 		}
-		
+
 	}
 
 	attach() {
 
-		this.hostElementId.insertAdjacentElement(this.insertBefore ? 'afterbegin' : 'beforeend', this.element);
+		this.hostElement.insertAdjacentElement(this.insertBefore ? 'afterbegin' : 'beforeend', this.element);
 	}
 }
 
 class Tooltip extends Component {
-	constructor(closeNotifierFunction) {
-		super();
+	constructor(closeNotifierFunction, text, hostElementId) {
+		super(hostElementId);
 		this.closeNotifier = closeNotifierFunction;
+		this.text = text;
 		this.create();
 	}
 
@@ -50,10 +52,28 @@ class Tooltip extends Component {
 		this.closeNotifier();
 	}
 
-	create(){
+	create() {
 		const tooltipElement = document.createElement('div');
 		tooltipElement.className = 'card';
-		tooltipElement.textContent = 'Dum';
+
+		const tooltipTemplate = document.getElementById('tooltip');
+		const tooltipBody = document.importNode(tooltipTemplate.content, true);
+		tooltipBody.querySelector('p').textContent = this.text;
+		tooltipElement.append(tooltipBody);
+
+		const hostElPosLeft = this.hostElement.offsetLeft;
+		const hostElPosTop = this.hostElement.offsetTop;
+		const hostElHeight = this.hostElement.clientHeight;
+		const parentElementScrolling = this.hostElement.parentElement.scrollTop;
+
+		const x = hostElPosLeft + 20;
+		const y = hostElPosTop + hostElHeight - parentElementScrolling - 10;
+
+		tooltipElement.style.position = 'absolute';
+		tooltipElement.style.left = x + 'px';
+		tooltipElement.style.top = y + 'px';
+
+
 		tooltipElement.addEventListener('click', this.closeTooltip);
 		this.element = tooltipElement;
 	}
@@ -76,9 +96,11 @@ class ProjectItem {
 		if (this.hasActiveTooltip) {
 			return;
 		}
+		const projectItemElement = document.getElementById(this.id);
+		const tooltipText = projectItemElement.dataset.extraInfo;
 		const tooltip = new Tooltip(() => {
 			this.hasActiveTooltip = false;
-		});
+		}, tooltipText, this.id);
 		tooltip.attach();
 		this.hasActiveTooltip = true;
 	}
@@ -86,7 +108,7 @@ class ProjectItem {
 	connectMoreInfoButton() {
 		const projectItemElement = document.getElementById(this.id);
 		const moreInfoBtn = projectItemElement.querySelector('button:first-of-type');
-		moreInfoBtn.addEventListener('click', this.showMoreInfoHandler);
+		moreInfoBtn.addEventListener('click', this.showMoreInfoHandler.bind(this));
 	}
 
 	connectSwitchButton(type) {
